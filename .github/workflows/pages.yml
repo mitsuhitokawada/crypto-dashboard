@@ -6,7 +6,7 @@ on:
   workflow_dispatch:
 
 permissions:
-  contents: read
+  contents: write
   pages: write
   id-token: write
 
@@ -22,33 +22,52 @@ jobs:
         uses: actions/checkout@v4
         with:
           ref: claude/monthly-data-dashboard-lEf1R
+          fetch-depth: 0
 
-      - name: Enable GitHub Pages via API
+      - name: Deploy to gh-pages branch
         run: |
-          echo "--- Enabling Pages (build_type: workflow) ---"
-          curl -v -X POST \
+          git config user.name  "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+
+          # Create or reset gh-pages branch
+          git checkout --orphan gh-pages 2>/dev/null || git checkout gh-pages
+          git reset --hard
+
+          # Copy only the dashboard file
+          git checkout claude/monthly-data-dashboard-lEf1R -- index.html
+
+          git add index.html
+          git commit -m "Deploy dashboard $(date '+%Y-%m-%d %H:%M')" --allow-empty
+
+          git push origin gh-pages --force
+
+      - name: Enable GitHub Pages (branch source)
+        run: |
+          echo "Enabling Pages from gh-pages branch..."
+          # Try to create Pages
+          RESPONSE=$(curl -s -w "\n%{http_code}" -X POST \
             -H "Authorization: Bearer ${{ secrets.GITHUB_TOKEN }}" \
             -H "Accept: application/vnd.github+json" \
             -H "X-GitHub-Api-Version: 2022-11-28" \
             https://api.github.com/repos/${{ github.repository }}/pages \
-            -d '{"build_type":"workflow"}' 2>&1 || true
-          echo "--- Updating to workflow if already exists ---"
-          curl -v -X PUT \
-            -H "Authorization: Bearer ${{ secrets.GITHUB_TOKEN }}" \
-            -H "Accept: application/vnd.github+json" \
-            -H "X-GitHub-Api-Version: 2022-11-28" \
-            https://api.github.com/repos/${{ github.repository }}/pages \
-            -d '{"build_type":"workflow"}' 2>&1 || true
-          sleep 5
+            -d '{"source":{"branch":"gh-pages","path":"/"}}')
+          CODE=$(echo "$RESPONSE" | tail -1)
+          BODY=$(echo "$RESPONSE" | head -1)
+          echo "HTTP $CODE: $BODY"
 
-      - name: Upload Pages artifact
-        uses: actions/upload-pages-artifact@v3
-        with:
-          path: '.'
+          if [ "$CODE" = "201" ] || [ "$CODE" = "409" ]; then
+            echo "Pages enabled or already active!"
+          else
+            # Try PUT (update existing)
+            curl -s -X PUT \
+              -H "Authorization: Bearer ${{ secrets.GITHUB_TOKEN }}" \
+              -H "Accept: application/vnd.github+json" \
+              -H "X-GitHub-Api-Version: 2022-11-28" \
+              https://api.github.com/repos/${{ github.repository }}/pages \
+              -d '{"source":{"branch":"gh-pages","path":"/"}}' || true
+          fi
 
-      - name: Deploy to GitHub Pages
-        id: deployment
-        uses: actions/deploy-pages@v4
-
-      - name: Print URL
-        run: echo "Published at https://${{ github.repository_owner }}.github.io/crypto-dashboard/"
+      - name: Print published URL
+        run: |
+          echo "Dashboard URL: https://${{ github.repository_owner }}.github.io/crypto-dashboard/"
+          echo "Repository:    https://github.com/${{ github.repository }}"
