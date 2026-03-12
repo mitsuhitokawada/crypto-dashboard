@@ -25,8 +25,10 @@ jobs:
         uses: actions/checkout@v4
         with:
           ref: claude/monthly-data-dashboard-lEf1R
-      - name: Setup Pages
+      - name: Enable and Setup Pages
         uses: actions/configure-pages@v5
+        with:
+          enablement: true
       - name: Upload artifact
         uses: actions/upload-pages-artifact@v3
         with:
