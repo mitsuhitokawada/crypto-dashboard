@@ -1,0 +1,1304 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>JVCEA 会員の暗号資産取引状況表（月次）</title>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --bg-base:   #0d1117;
+      --bg-card:   #161b22;
+      --bg-card2:  #1c2230;
+      --border:    #30363d;
+      --gold:      #f0b429;
+      --gold-dim:  #b88820;
+      --gold-bg:   rgba(240,180,41,.09);
+      --gold-glow: rgba(240,180,41,.22);
+      --blue:      #58a6ff;
+      --teal:      #39d0c4;
+      --red:       #f85149;
+      --green:     #3fb950;
+      --purple:    #bc8cff;
+      --orange:    #ffa657;
+      --text-hi:   #e6edf3;
+      --text-lo:   #8b949e;
+      --text-mid:  #c9d1d9;
+      --r:         12px;
+    }
+
+    body {
+      font-family: 'Helvetica Neue', Arial, 'Hiragino Kaku Gothic Pro', 'Meiryo', sans-serif;
+      background: var(--bg-base);
+      color: var(--text-mid);
+      min-height: 100vh;
+    }
+
+    header {
+      background: linear-gradient(180deg, #1c2230 0%, #161b22 100%);
+      border-bottom: 1px solid var(--border);
+      padding: 18px 32px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 16px;
+      flex-wrap: wrap;
+    }
+    .hd-title  { font-size: 1.15rem; font-weight: 800; color: var(--text-hi); letter-spacing: .02em; }
+    .hd-sub    { font-size: .73rem; color: var(--text-lo); margin-top: 2px; }
+    .hd-right  { display: flex; align-items: center; gap: 16px; flex-wrap: wrap; }
+    .hd-meta   { font-size: .7rem; color: var(--text-lo); }
+    .badge-new {
+      display: inline-flex; align-items: center; gap: 6px;
+      background: var(--gold); color: #0d1117;
+      font-size: .72rem; font-weight: 800; padding: 5px 14px;
+      border-radius: 999px; letter-spacing: .04em; white-space: nowrap;
+    }
+    .badge-new::before { content: '●'; font-size: .6em; }
+
+    main { max-width: 1400px; margin: 0 auto; padding: 22px 32px 44px; }
+
+    .section-label {
+      font-size: .68rem; font-weight: 700; color: var(--text-lo);
+      letter-spacing: .1em; text-transform: uppercase;
+      margin-top: 32px; margin-bottom: 12px;
+    }
+
+    .kpi-grid {
+      display: grid;
+      grid-template-columns: repeat(5, 1fr);
+      gap: 12px;
+    }
+    @media (max-width:1100px){ .kpi-grid{ grid-template-columns:repeat(3,1fr); } }
+    @media (max-width:720px) { .kpi-grid{ grid-template-columns:repeat(2,1fr); } }
+
+    .kpi {
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      border-radius: var(--r);
+      padding: 18px 16px 14px;
+      position: relative;
+      transition: transform .14s, box-shadow .14s;
+    }
+    .kpi:hover { transform: translateY(-2px); box-shadow: 0 8px 24px rgba(0,0,0,.35); }
+    .kpi.hi {
+      border-color: var(--gold-dim);
+      background: linear-gradient(135deg,#1c2230,#191e2d);
+      box-shadow: 0 0 0 1px var(--gold-dim), 0 4px 20px var(--gold-glow);
+    }
+    .kpi.hi::before {
+      content: '最新';
+      position: absolute; top:-1px; right:14px;
+      background: var(--gold); color:#0d1117;
+      font-size:.58rem; font-weight:800;
+      padding:2px 8px; border-radius:0 0 6px 6px;
+    }
+    .kpi-label { font-size:.67rem; color:var(--text-lo); font-weight:600; margin-bottom:9px; }
+    .kpi-value {
+      font-size: 1.55rem; font-weight: 800;
+      color: var(--text-hi); letter-spacing:-.02em; line-height:1.05;
+    }
+    .kpi.hi .kpi-value { color: var(--gold); }
+    .kpi-unit { font-size:.7rem; font-weight:400; color:var(--text-lo); margin-left:3px; }
+    .kpi-footer { margin-top:7px; font-size:.68rem; display:flex; align-items:center; gap:5px; }
+    .kpi-prev { color:var(--text-lo); }
+    .delta { font-weight:700; }
+    .delta.up  { color:var(--green); }
+    .delta.dn  { color:var(--red); }
+
+    .row { display:grid; gap:12px; margin-top:12px; }
+    .row.c2 { grid-template-columns:1.55fr 1fr; }
+    .row.c2e { grid-template-columns:1fr 1fr; }
+    @media (max-width:1050px){ .row.c2,.row.c2e{ grid-template-columns:1fr; } }
+
+    .card {
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      border-radius: var(--r);
+      padding: 20px 18px 16px;
+    }
+    .card-title { font-size:.82rem; font-weight:700; color:var(--text-hi); margin-bottom:3px; }
+    .card-sub   { font-size:.66rem; color:var(--text-lo); margin-bottom:14px; }
+    .latest-dot { display:inline-block; width:8px; height:8px; border-radius:50%; background:var(--gold); margin-right:3px; vertical-align:middle; }
+    .chart-wrap { position:relative; }
+
+    .legend { display:flex; gap:16px; flex-wrap:wrap; margin-top:10px; }
+    .leg { display:flex; align-items:center; gap:5px; font-size:.67rem; color:var(--text-lo); }
+    .dot { width:10px; height:10px; border-radius:2px; flex-shrink:0; }
+
+    .tbl-card {
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      border-radius: var(--r);
+      overflow: hidden;
+      margin-top: 12px;
+    }
+    .tbl-head {
+      padding: 16px 18px 12px;
+      border-bottom: 1px solid var(--border);
+      display: flex; align-items: baseline; gap: 10px; flex-wrap: wrap;
+    }
+    .tbl-badge {
+      font-size:.67rem; font-weight:700; color:var(--gold);
+      background:var(--gold-bg); padding:2px 8px;
+      border-radius:4px; border:1px solid var(--gold-dim);
+    }
+    .tbl-note { font-size:.65rem; color:var(--text-lo); margin-left:auto; }
+
+    table { width:100%; border-collapse:collapse; font-size:.78rem; }
+    thead th {
+      text-align:right; padding:8px 14px;
+      font-size:.64rem; font-weight:700; color:var(--text-lo);
+      letter-spacing:.04em; background:#1a1f2e;
+      border-bottom:1px solid var(--border);
+    }
+    thead th:first-child { text-align:left; }
+
+    tbody tr { border-bottom:1px solid rgba(48,54,61,.55); transition:background .1s; }
+    tbody tr:last-child { border-bottom:none; }
+    tbody tr:hover { background:rgba(255,255,255,.025); }
+    tbody tr.r1   { background:rgba(240,180,41,.04); }
+    tbody tr.gap-row td {
+      text-align:center; color:var(--text-lo); font-size:.68rem;
+      padding:8px 14px; background:#12161d;
+      border-top:2px dashed var(--border);
+      border-bottom:2px dashed var(--border);
+    }
+    tbody td { padding:9px 14px; text-align:right; color:var(--text-mid); }
+    tbody td:first-child { text-align:left; }
+
+    .rk { display:inline-flex; align-items:center; justify-content:center;
+          width:22px; height:22px; border-radius:50%; font-size:.68rem; font-weight:800; }
+    .rk1 { background:var(--gold); color:#0d1117; }
+    .rk2 { background:#8b949e; color:#0d1117; }
+    .rk3 { background:#a87640; color:#fff; }
+    .rkn { background:#21262d; color:var(--text-lo); }
+
+    .bar-c { display:flex; align-items:center; gap:7px; justify-content:flex-end; }
+    .bar-t { width:72px; height:5px; background:#21262d; border-radius:3px; overflow:hidden; flex-shrink:0; }
+    .bar-f { height:100%; border-radius:3px; background:var(--blue); }
+
+    .note {
+      background: rgba(88,166,255,.06);
+      border: 1px solid rgba(88,166,255,.2);
+      border-radius: 8px;
+      padding: 10px 14px;
+      font-size: .68rem;
+      color: var(--text-lo);
+      margin-top: 8px;
+    }
+    .note strong { color: var(--blue); }
+    .note-warn {
+      background: rgba(248,81,73,.06);
+      border: 1px solid rgba(248,81,73,.2);
+      border-radius: 8px;
+      padding: 10px 14px;
+      font-size: .68rem;
+      color: var(--text-lo);
+      margin-top: 8px;
+    }
+    .note-warn strong { color: var(--red); }
+
+    .stat-row {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 10px;
+      margin-top: 12px;
+    }
+    @media (max-width:720px){ .stat-row{ grid-template-columns:repeat(2,1fr); } }
+    .stat-box {
+      background: var(--bg-card2);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 12px 14px;
+      text-align: center;
+    }
+    .stat-box .s-lbl { font-size:.63rem; color:var(--text-lo); margin-bottom:4px; }
+    .stat-box .s-val { font-size:1.1rem; font-weight:800; color:var(--text-hi); }
+    .stat-box .s-unit{ font-size:.63rem; color:var(--text-lo); margin-left:2px; }
+
+    footer {
+      max-width:1400px; margin:22px auto 0;
+      padding:14px 32px 32px;
+      border-top:1px solid var(--border);
+      font-size:.65rem; color:var(--text-lo);
+      line-height:1.7;
+    }
+    footer a { color:var(--blue); text-decoration:none; }
+    footer a:hover { text-decoration:underline; }
+  </style>
+</head>
+<body>
+
+<header>
+  <div>
+    <div class="hd-title">会員の暗号資産取引状況表（月次）</div>
+    <div class="hd-sub">一般社団法人 日本暗号資産等取引業協会（JVCEA）／ 金額＝百万円</div>
+  </div>
+  <div class="hd-right">
+    <div class="hd-meta">更新日：2026年7月31日　集計期間：2020年10月〜2026年6月</div>
+    <span class="badge-new">最新：2026年6月</span>
+  </div>
+</header>
+
+<main>
+
+  <!-- KPI -->
+  <div class="section-label">2026年6月 最新指標（前月比）</div>
+  <div class="kpi-grid">
+
+    <div class="kpi hi">
+      <div class="kpi-label">現物取引高</div>
+      <div class="kpi-value">904,867<span class="kpi-unit">百万円</span></div>
+      <div class="kpi-footer">
+        <span class="prev kpi-prev">前月 708,838</span>
+        <span class="delta up">▲ 27.7%</span>
+      </div>
+    </div>
+
+    <div class="kpi hi">
+      <div class="kpi-label">証拠金取引高</div>
+      <div class="kpi-value">846,705<span class="kpi-unit">百万円</span></div>
+      <div class="kpi-footer">
+        <span class="prev kpi-prev">前月 684,256</span>
+        <span class="delta up">▲ 23.7%</span>
+      </div>
+    </div>
+
+    <div class="kpi hi">
+      <div class="kpi-label">利用者預託金残高</div>
+      <div class="kpi-value">2,752,124<span class="kpi-unit">百万円</span></div>
+      <div class="kpi-footer">
+        <span class="prev kpi-prev">前月 3,355,610</span>
+        <span class="delta dn">▼ 18.0%</span>
+      </div>
+    </div>
+
+    <div class="kpi hi">
+      <div class="kpi-label">全体口座数（設定）</div>
+      <div class="kpi-value">1,444.3<span class="kpi-unit">万口座</span></div>
+      <div class="kpi-footer">
+        <span class="prev kpi-prev">前月 1,422.7万</span>
+        <span class="delta up">▲ 1.5%</span>
+      </div>
+    </div>
+
+    <div class="kpi hi">
+      <div class="kpi-label">全体口座数（稼働）</div>
+      <div class="kpi-value">892.0<span class="kpi-unit">万口座</span></div>
+      <div class="kpi-footer">
+        <span class="prev kpi-prev">前月 881.3万</span>
+        <span class="delta up">▲ 1.2%</span>
+      </div>
+    </div>
+
+  </div>
+
+  <div class="stat-row">
+    <div class="stat-box">
+      <div class="s-lbl">うち証拠金預託（百万円）</div>
+      <div class="s-val">399,346<span class="s-unit">百万円</span></div>
+    </div>
+    <div class="stat-box">
+      <div class="s-lbl">証拠金口座（設定）</div>
+      <div class="s-val">222.0<span class="s-unit">万口座</span></div>
+    </div>
+    <div class="stat-box">
+      <div class="s-lbl">証拠金口座（稼働）</div>
+      <div class="s-val">100.4<span class="s-unit">万口座</span></div>
+    </div>
+    <div class="stat-box">
+      <div class="s-lbl">データ収録期間</div>
+      <div class="s-val" style="font-size:.85rem;">2020/10〜2026/6</div>
+    </div>
+  </div>
+
+  <!-- RECENT CHARTS (full period) -->
+  <div class="section-label" style="margin-top:32px;">現物・証拠金取引高 ／ 利用者預託金残高の推移（2020年10月〜2026年6月）</div>
+  <div class="row c2">
+
+    <div class="card">
+      <div class="card-title">現物・証拠金 取引高推移</div>
+      <div class="card-sub">金額（百万円）— <span class="latest-dot"></span>2026年6月が最新値 ／ 全期間収録</div>
+      <div class="chart-wrap" style="height:280px;">
+        <canvas id="cvVol"></canvas>
+      </div>
+      <div class="legend">
+        <div class="leg"><div class="dot" style="background:var(--gold)"></div>現物取引高</div>
+        <div class="leg"><div class="dot" style="background:var(--teal)"></div>証拠金取引高</div>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-title">利用者預託金残高 推移</div>
+      <div class="card-sub">月末時点 百万円 — <span class="latest-dot"></span>2026年6月が最新値 ／ 全期間収録</div>
+      <div class="chart-wrap" style="height:250px;">
+        <canvas id="cvDeposit"></canvas>
+      </div>
+      <div class="legend">
+        <div class="leg"><div class="dot" style="background:var(--purple)"></div>預託金合計</div>
+        <div class="leg"><div class="dot" style="background:var(--orange)"></div>うち証拠金額</div>
+      </div>
+    </div>
+
+  </div>
+
+  <div class="row c2" style="margin-top:12px;">
+
+    <div class="card">
+      <div class="card-title">利用者口座数 推移</div>
+      <div class="card-sub">月末時点（万口座）— <span class="latest-dot"></span>2026年6月が最新値</div>
+      <div class="chart-wrap" style="height:250px;">
+        <canvas id="cvAcc"></canvas>
+      </div>
+      <div class="legend">
+        <div class="leg"><div class="dot" style="background:var(--blue)"></div>全体（設定）</div>
+        <div class="leg"><div class="dot" style="background:var(--green)"></div>全体（稼働）</div>
+        <div class="leg"><div class="dot" style="background:#e3b341"></div>証拠金（設定）</div>
+        <div class="leg"><div class="dot" style="background:var(--teal)"></div>証拠金（稼働）</div>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-title">現物・証拠金 月次比較（最新12ヶ月）</div>
+      <div class="card-sub">現物 vs 証拠金 取引高（百万円）</div>
+      <div class="chart-wrap" style="height:250px;">
+        <canvas id="cvRatio"></canvas>
+      </div>
+      <div class="legend">
+        <div class="leg"><div class="dot" style="background:var(--gold)"></div>現物取引高</div>
+        <div class="leg"><div class="dot" style="background:var(--teal)"></div>証拠金取引高</div>
+      </div>
+    </div>
+
+  </div>
+
+  <!-- HISTORICAL CHARTS (2020/10 - 2021/8) -->
+  <div class="section-label" style="margin-top:40px;">過去データ（2020年10月〜2021年8月）</div>
+  <div class="note" style="margin-bottom:12px;">
+    <strong>注：</strong>スプレッドシートデータにより2021年9月〜2024年8月分を補完済みです。
+  </div>
+  <div class="row c2e">
+
+    <div class="card">
+      <div class="card-title">現物・証拠金 取引高（2020年10月〜2021年8月）</div>
+      <div class="card-sub">金額（百万円）— 暗号資産バブル期</div>
+      <div class="chart-wrap" style="height:260px;">
+        <canvas id="cvVolH"></canvas>
+      </div>
+      <div class="legend">
+        <div class="leg"><div class="dot" style="background:var(--gold)"></div>現物取引高</div>
+        <div class="leg"><div class="dot" style="background:var(--teal)"></div>証拠金取引高</div>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-title">利用者口座数（2020年10月〜2021年8月）</div>
+      <div class="card-sub">月末時点（万口座）</div>
+      <div class="chart-wrap" style="height:260px;">
+        <canvas id="cvAccH"></canvas>
+      </div>
+      <div class="legend">
+        <div class="leg"><div class="dot" style="background:var(--blue)"></div>全体（設定）</div>
+        <div class="leg"><div class="dot" style="background:var(--green)"></div>全体（稼働）</div>
+        <div class="leg"><div class="dot" style="background:#e3b341"></div>証拠金（設定）</div>
+        <div class="leg"><div class="dot" style="background:var(--teal)"></div>証拠金（稼働）</div>
+      </div>
+    </div>
+
+  </div>
+
+  <!-- MONTHLY DATA TABLE -->
+  <div class="section-label" style="margin-top:32px;">月次データ一覧（全期間）</div>
+  <div class="tbl-card">
+    <div class="tbl-head">
+      <div class="card-title" style="margin:0">月次取引高・預託金・口座数</div>
+      <span class="tbl-badge">2020年10月〜2026年6月</span>
+      <span class="tbl-note">金額：百万円 ／ 口座数：口座</span>
+    </div>
+    <div style="overflow-x:auto;">
+    <table>
+      <thead>
+        <tr>
+          <th style="text-align:left;width:80px;">年/月</th>
+          <th>現物取引高<br>（金額）</th>
+          <th>証拠金取引高<br>（金額）</th>
+          <th>預託金残高<br>（合計）</th>
+          <th>うち<br>証拠金額</th>
+          <th>全体口座<br>（設定）</th>
+          <th>全体口座<br>（稼働）</th>
+          <th>証拠金口座<br>（設定）</th>
+          <th>証拠金口座<br>（稼働）</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr class="r1">
+          <td style="font-weight:800;color:var(--gold);">2026/6 ★</td>
+          <td style="color:var(--gold);font-weight:700;">904,867</td>
+          <td style="color:var(--gold);font-weight:700;">846,705</td>
+          <td style="color:var(--gold);font-weight:700;">2,752,124</td>
+          <td>399,346</td>
+          <td>14,443,000</td><td>8,920,000</td><td>2,220,000</td><td>1,004,000</td>
+        </tr>
+        <tr>
+          <td>2026/5</td>
+          <td>708,838</td><td>684,256</td><td>3,355,610</td><td>471,377</td>
+          <td>14,227,000</td><td>8,813,000</td><td>2,177,000</td><td>1,000,000</td>
+        </tr>
+        <tr>
+          <td>2026/4</td>
+          <td>843,868</td><td>751,274</td><td>3,456,765</td><td>477,808</td>
+          <td>14,175,000</td><td>8,809,000</td><td>2,155,000</td><td>996,000</td>
+        </tr>
+        <tr>
+          <td>2026/3</td>
+          <td>1,200,889</td><td>1,007,259</td><td>3,149,187</td><td>418,073</td>
+          <td>14,117,000</td><td>8,802,000</td><td>2,137,000</td><td>994,000</td>
+        </tr>
+        <tr>
+          <td>2026/2</td>
+          <td>1,622,651</td><td>1,544,897</td><td>3,098,717</td><td>407,596</td>
+          <td>14,038,000</td><td>8,779,000</td><td>2,112,000</td><td>976,000</td>
+        </tr>
+        <tr>
+          <td>2026/1</td>
+          <td>1,544,492</td><td>1,002,694</td><td>3,710,620</td><td>462,478</td>
+          <td>13,937,745</td><td>8,499,944</td><td>2,075,842</td><td>961,855</td>
+        </tr>
+        <tr>
+          <td>2025/12</td>
+          <td>1,664,937</td><td>1,024,044</td><td>4,143,962</td><td>525,054</td>
+          <td>13,789,984</td><td>8,454,042</td><td>2,035,159</td><td>950,825</td>
+        </tr>
+        <tr>
+          <td>2025/11</td>
+          <td>2,054,195</td><td>1,334,659</td><td>4,383,257</td><td>559,273</td>
+          <td>13,550,693</td><td>8,367,652</td><td>2,008,259</td><td>945,967</td>
+        </tr>
+        <tr>
+          <td>2025/10</td>
+          <td>2,293,515</td><td>1,497,018</td><td>5,130,197</td><td>641,798</td>
+          <td>13,408,770</td><td>8,288,510</td><td>1,981,655</td><td>939,806</td>
+        </tr>
+        <tr>
+          <td>2025/9</td>
+          <td>1,493,209</td><td>820,097</td><td>5,219,211</td><td>658,451</td>
+          <td>13,209,390</td><td>8,061,803</td><td>1,950,462</td><td>923,709</td>
+        </tr>
+        <tr>
+          <td>2025/8</td>
+          <td>2,007,049</td><td>1,173,907</td><td>5,079,903</td><td>631,621</td>
+          <td>12,932,318</td><td>7,874,470</td><td>1,922,309</td><td>918,476</td>
+        </tr>
+        <tr>
+          <td>2025/7</td>
+          <td>2,032,994</td><td>1,251,550</td><td>5,355,555</td><td>661,242</td>
+          <td>12,743,318</td><td>7,770,102</td><td>1,896,417</td><td>901,107</td>
+        </tr>
+        <tr>
+          <td>2025/6</td>
+          <td>1,395,329</td><td>871,943</td><td>4,349,764</td><td>524,804</td>
+          <td>12,580,178</td><td>7,673,974</td><td>1,875,639</td><td>885,258</td>
+        </tr>
+        <tr>
+          <td>2025/5</td>
+          <td>1,726,026</td><td>11,670,423</td><td>4,261,508</td><td>498,456</td>
+          <td>12,439,882</td><td>7,578,829</td><td>1,852,939</td><td>883,274</td>
+        </tr>
+        <tr>
+          <td>2025/4</td>
+          <td>1,633,929</td><td>1,710,726</td><td>3,786,643</td><td>443,417</td>
+          <td>12,290,832</td><td>7,502,957</td><td>1,838,776</td><td>879,200</td>
+        </tr>
+        <tr>
+          <td>2025/3</td>
+          <td>1,902,374</td><td>1,669,316</td><td>3,610,301</td><td>422,739</td>
+          <td>12,217,110</td><td>7,479,762</td><td>1,822,159</td><td>875,952</td>
+        </tr>
+        <tr>
+          <td>2025/2</td>
+          <td>1,917,634</td><td>1,539,807</td><td>3,778,617</td><td>502,717</td>
+          <td>12,130,193</td><td>7,280,116</td><td>1,714,990</td><td>731,289</td>
+        </tr>
+        <tr>
+          <td>2025/1</td>
+          <td>2,535,010</td><td>1,872,787</td><td>5,038,924</td><td>547,574</td>
+          <td>11,951,938</td><td>7,232,058</td><td>1,684,398</td><td>723,910</td>
+        </tr>
+        <tr>
+          <td>2024/12</td>
+          <td>2,753,491</td><td>2,379,946</td><td>4,506,801</td><td>472,595</td>
+          <td>11,624,021</td><td>7,024,096</td><td>1,628,592</td><td>705,562</td>
+        </tr>
+        <tr>
+          <td>2024/11</td>
+          <td>2,670,562</td><td>2,198,555</td><td>4,370,971</td><td>444,920</td>
+          <td>11,307,811</td><td>6,855,117</td><td>1,581,365</td><td>687,402</td>
+        </tr>
+        <tr>
+          <td>2024/10</td>
+          <td>1,116,411</td><td>799,849</td><td>2,887,659</td><td>257,626</td>
+          <td>11,030,994</td><td>6,629,756</td><td>1,533,864</td><td>665,807</td>
+        </tr>
+        <tr>
+          <td>2024/9</td>
+          <td>909,779</td><td>701,558</td><td>2,620,979</td><td>243,444</td>
+          <td>10,826,025</td><td>6,468,301</td><td>1,521,474</td><td>655,657</td>
+        </tr>
+        <tr>
+          <td>2024/8</td>
+          <td>909,779</td><td>701,558</td><td>2,620,979</td><td>243,444</td>
+          <td>10,826,025</td><td>6,468,301</td><td>1,521,474</td><td>655,657</td>
+        </tr>
+        <tr>
+          <td>2024/7</td>
+          <td>1,434,491</td><td>1,032,071</td><td>2,496,230</td><td>229,349</td>
+          <td>10,627,744</td><td>6,394,759</td><td>1,506,494</td><td>653,707</td>
+        </tr>
+        <tr>
+          <td>2024/6</td>
+          <td>1,416,427</td><td>1,055,056</td><td>2,896,392</td><td>258,182</td>
+          <td>10,530,166</td><td>6,352,689</td><td>1,491,674</td><td>648,633</td>
+        </tr>
+        <tr>
+          <td>2024/5</td>
+          <td>1,039,630</td><td>597,084</td><td>2,893,642</td><td>251,595</td>
+          <td>10,250,429</td><td>6,128,195</td><td>1,469,458</td><td>637,372</td>
+        </tr>
+        <tr>
+          <td>2024/4</td>
+          <td>1,259,998</td><td>58,090</td><td>3,024,464</td><td>272,035</td>
+          <td>10,182,095</td><td>6,136,456</td><td>1,477,676</td><td>633,897</td>
+        </tr>
+        <tr>
+          <td>2024/3</td>
+          <td>1,664,934</td><td>1,088,377</td><td>2,719,088</td><td>243,964</td>
+          <td>9,958,770</td><td>5,960,171</td><td>1,457,232</td><td>621,235</td>
+        </tr>
+        <tr>
+          <td>2024/2</td>
+          <td>2,432,797</td><td>1,337,298</td><td>3,072,684</td><td>283,046</td>
+          <td>9,901,328</td><td>5,920,854</td><td>1,616,258</td><td>656,832</td>
+        </tr>
+        <tr>
+          <td>2024/1</td>
+          <td>1,416,156</td><td>584,689</td><td>2,746,615</td><td>245,025</td>
+          <td>9,522,722</td><td>5,665,983</td><td>1,777,173</td><td>648,893</td>
+        </tr>
+        <tr>
+          <td>2023/12</td>
+          <td>1,289,202</td><td>659,014</td><td>1,974,632</td><td>182,231</td>
+          <td>9,171,295</td><td>5,393,523</td><td>1,754,173</td><td>637,726</td>
+        </tr>
+        <tr>
+          <td>2023/11</td>
+          <td>1,108,137</td><td>419,775</td><td>1,946,536</td><td>183,327</td>
+          <td>8,873,185</td><td>5,155,008</td><td>1,734,626</td><td>628,374</td>
+        </tr>
+        <tr>
+          <td>2023/10</td>
+          <td>915,296</td><td>402,742</td><td>1,774,690</td><td>168,424</td>
+          <td>8,557,199</td><td>4,990,091</td><td>1,715,177</td><td>625,229</td>
+        </tr>
+        <tr>
+          <td>2023/9</td>
+          <td>701,290</td><td>374,329</td><td>1,561,345</td><td>158,159</td>
+          <td>8,397,670</td><td>5,004,829</td><td>1,704,809</td><td>616,312</td>
+        </tr>
+        <tr>
+          <td>2023/8</td>
+          <td>429,245</td><td>207,440</td><td>1,402,132</td><td>137,474</td>
+          <td>8,158,958</td><td>4,807,352</td><td>1,695,197</td><td>615,351</td>
+        </tr>
+        <tr>
+          <td>2023/7</td>
+          <td>501,080</td><td>239,047</td><td>1,356,490</td><td>130,487</td>
+          <td>7,636,818</td><td>4,583,078</td><td>1,488,726</td><td>609,290</td>
+        </tr>
+        <tr>
+          <td>2023/6</td>
+          <td>648,828</td><td>301,279</td><td>1,457,254</td><td>140,710</td>
+          <td>7,818,991</td><td>4,477,507</td><td>1,477,024</td><td>595,276</td>
+        </tr>
+        <tr>
+          <td>2023/5</td>
+          <td>668,598</td><td>475,568</td><td>1,415,295</td><td>129,439</td>
+          <td>7,439,962</td><td>4,406,775</td><td>1,465,468</td><td>588,419</td>
+        </tr>
+        <tr>
+          <td>2023/4</td>
+          <td>562,449</td><td>286,847</td><td>1,314,474</td><td>120,928</td>
+          <td>7,180,603</td><td>4,230,476</td><td>1,449,458</td><td>584,359</td>
+        </tr>
+        <tr>
+          <td>2023/3</td>
+          <td>676,408</td><td>295,880</td><td>1,348,585</td><td>117,278</td>
+          <td>6,984,902</td><td>4,071,451</td><td>1,439,679</td><td>580,260</td>
+        </tr>
+        <tr>
+          <td>2023/2</td>
+          <td>921,758</td><td>1,096,505</td><td>1,311,787</td><td>115,471</td>
+          <td>6,798,978</td><td>3,957,641</td><td>1,428,494</td><td>574,449</td>
+        </tr>
+        <tr>
+          <td>2023/1</td>
+          <td>613,910</td><td>820,207</td><td>1,167,579</td><td>99,473</td>
+          <td>6,620,206</td><td>3,849,228</td><td>1,415,959</td><td>568,718</td>
+        </tr>
+        <tr>
+          <td>2022/12</td>
+          <td>506,764</td><td>708,717</td><td>1,088,061</td><td>97,669</td>
+          <td>6,462,760</td><td>3,778,459</td><td>1,371,481</td><td>563,532</td>
+        </tr>
+        <tr>
+          <td>2022/11</td>
+          <td>344,198</td><td>434,527</td><td>1,058,595</td><td>83,811</td>
+          <td>6,399,293</td><td>3,717,778</td><td>1,361,524</td><td>553,265</td>
+        </tr>
+        <tr>
+          <td>2022/10</td>
+          <td>757,174</td><td>874,484</td><td>937,859</td><td>91,578</td>
+          <td>6,364,993</td><td>3,720,952</td><td>1,350,288</td><td>553,596</td>
+        </tr>
+        <tr>
+          <td>2022/9</td>
+          <td>574,483</td><td>966,674</td><td>1,188,622</td><td>111,071</td>
+          <td>6,448,112</td><td>3,744,586</td><td>1,375,051</td><td>550,606</td>
+        </tr>
+        <tr>
+          <td>2022/8</td>
+          <td>794,323</td><td>1,404,797</td><td>1,135,589</td><td>126,348</td>
+          <td>6,379,747</td><td>3,713,531</td><td>1,410,577</td><td>545,870</td>
+        </tr>
+        <tr>
+          <td>2022/7</td>
+          <td>865,706</td><td>1,507,435</td><td>1,086,449</td><td>111,872</td>
+          <td>6,297,573</td><td>3,563,577</td><td>1,395,889</td><td>430,489</td>
+        </tr>
+        <tr>
+          <td>2022/6</td>
+          <td>1,071,485</td><td>1,750,392</td><td>1,174,628</td><td>115,807</td>
+          <td>6,229,956</td><td>3,587,150</td><td>1,376,016</td><td>499,067</td>
+        </tr>
+        <tr>
+          <td>2022/5</td>
+          <td>1,154,713</td><td>1,879,063</td><td>948,418</td><td>86,692</td>
+          <td>6,293,587</td><td>3,586,666</td><td>1,352,705</td><td>451,406</td>
+        </tr>
+        <tr>
+          <td>2022/4</td>
+          <td>1,387,738</td><td>1,962,742</td><td>1,278,677</td><td>102,152</td>
+          <td>6,107,445</td><td>3,514,404</td><td>1,230,220</td><td>425,281</td>
+        </tr>
+        <tr>
+          <td>2022/3</td>
+          <td>1,023,745</td><td>1,492,660</td><td>1,575,104</td><td>108,956</td>
+          <td>5,967,624</td><td>3,434,323</td><td>1,203,266</td><td>411,195</td>
+        </tr>
+        <tr>
+          <td>2022/2</td>
+          <td>1,345,298</td><td>1,888,518</td><td>1,837,836</td><td>110,235</td>
+          <td>5,858,675</td><td>3,380,128</td><td>1,179,470</td><td>406,765</td>
+        </tr>
+        <tr>
+          <td>2022/1</td>
+          <td>1,284,829</td><td>1,990,683</td><td>1,551,680</td><td>99,662</td>
+          <td>5,737,450</td><td>3,310,458</td><td>1,147,478</td><td>392,666</td>
+        </tr>
+        <tr>
+          <td>2021/12</td>
+          <td>1,370,842</td><td>1,798,493</td><td>1,458,473</td><td>91,089</td>
+          <td>5,615,894</td><td>3,263,269</td><td>1,110,892</td><td>380,097</td>
+        </tr>
+        <tr>
+          <td>2021/11</td>
+          <td>1,897,425</td><td>2,704,796</td><td>1,785,468</td><td>98,614</td>
+          <td>5,477,935</td><td>3,213,574</td><td>1,110,283</td><td>367,624</td>
+        </tr>
+        <tr>
+          <td>2021/10</td>
+          <td>2,339,374</td><td>2,516,055</td><td>2,167,132</td><td>107,128</td>
+          <td>5,360,073</td><td>3,125,006</td><td>1,088,630</td><td>360,023</td>
+        </tr>
+        <tr>
+          <td>2021/9</td>
+          <td>2,053,344</td><td>3,305,524</td><td>1,673,182</td><td>92,117</td>
+          <td>5,092,064</td><td>2,950,360</td><td>1,350,992</td><td>586,221</td>
+        </tr>
+        <tr>
+          <td>2021/8</td>
+          <td>2,053,344</td><td>3,305,524</td><td>1,673,182</td><td>92,117</td>
+          <td>5,092,064</td><td>2,950,360</td><td>1,350,992</td><td>586,221</td>
+        </tr>
+        <tr>
+          <td>2021/7</td>
+          <td>2,459,134</td><td>3,619,559</td><td>1,827,583</td><td>101,094</td>
+          <td>4,977,790</td><td>2,877,451</td><td>1,332,427</td><td>565,778</td>
+        </tr>
+        <tr>
+          <td>2021/6</td>
+          <td>1,516,967</td><td>2,649,280</td><td>1,496,114</td><td>86,007</td>
+          <td>4,875,037</td><td>2,839,262</td><td>1,335,883</td><td>564,288</td>
+        </tr>
+        <tr>
+          <td>2021/5</td>
+          <td>2,317,608</td><td>3,937,932</td><td>1,373,618</td><td>84,148</td>
+          <td>4,810,380</td><td>2,797,028</td><td>1,304,394</td><td>564,330</td>
+        </tr>
+        <tr>
+          <td>2021/4</td>
+          <td>5,158,509</td><td>5,254,879</td><td>1,512,749</td><td>86,673</td>
+          <td>4,708,828</td><td>2,768,221</td><td>1,283,112</td><td>559,935</td>
+        </tr>
+        <tr>
+          <td>2021/3</td>
+          <td>4,183,943</td><td>4,056,632</td><td>1,997,286</td><td>102,749</td>
+          <td>4,524,456</td><td>2,665,395</td><td>1,242,831</td><td>546,600</td>
+        </tr>
+        <tr>
+          <td>2021/2</td>
+          <td>3,419,826</td><td>6,756,342</td><td>1,652,631</td><td>104,781</td>
+          <td>4,314,331</td><td>2,561,771</td><td>1,204,941</td><td>539,247</td>
+        </tr>
+        <tr>
+          <td>2021/1</td>
+          <td>4,171,074</td><td>13,071,219</td><td>1,339,203</td><td>63,575</td>
+          <td>4,129,116</td><td>2,464,039</td><td>1,189,567</td><td>537,360</td>
+        </tr>
+        <tr>
+          <td>2020/12</td>
+          <td>3,869,310</td><td>20,357,711</td><td>1,069,074</td><td>70,389</td>
+          <td>3,939,992</td><td>2,441,060</td><td>1,146,132</td><td>637,788</td>
+        </tr>
+        <tr>
+          <td>2020/11</td>
+          <td>1,801,141</td><td>10,010,768</td><td>793,606</td><td>53,404</td>
+          <td>3,710,078</td><td>2,317,884</td><td>1,087,336</td><td>618,292</td>
+        </tr>
+        <tr>
+          <td>2020/10</td>
+          <td>663,492</td><td>4,804,171</td><td>513,556</td><td>40,078</td>
+          <td>3,638,301</td><td>2,289,908</td><td>1,071,369</td><td>614,803</td>
+        </tr>
+      </tbody>
+    </table>
+    </div>
+  </div>
+
+  <!-- CRYPTO RANKING TABLE -->
+  <div class="section-label" style="margin-top:32px;">現物取引高 上位銘柄（2026年1月）</div>
+  <div class="note" style="margin-bottom:10px;">
+    <strong>注：</strong>銘柄別データは会員統計情報（現物取引高上位暗号資産データ）に掲載。数量単位＝各暗号資産における1通貨単位、金額単位＝百万円。
+  </div>
+  <div class="tbl-card">
+    <div class="tbl-head">
+      <div class="card-title" style="margin:0">現物取引高上位暗号資産データ</div>
+      <span class="tbl-badge">2026年1月</span>
+      <span class="tbl-note">金額：百万円</span>
+    </div>
+    <div style="overflow-x:auto;">
+    <table>
+      <thead>
+        <tr>
+          <th style="text-align:left;">順位</th>
+          <th style="text-align:left;">銘柄名</th>
+          <th>シンボル</th>
+          <th>現物買 数量</th>
+          <th>現物買 金額</th>
+          <th>現物売 数量</th>
+          <th>現物売 金額</th>
+          <th>合計 金額</th>
+          <th>シェア</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr class="r1">
+          <td><span class="rk rk1">1</span></td>
+          <td>ビットコイン</td><td style="text-align:right;">BTC</td>
+          <td style="color:var(--green);">52,100</td><td>558,000</td>
+          <td style="color:var(--red);">52,300</td><td>563,000</td>
+          <td style="color:var(--gold);font-weight:700;">1,121,000</td>
+          <td><div class="bar-c">72.6%<div class="bar-t"><div class="bar-f" style="width:100%;background:var(--gold)"></div></div></div></td>
+        </tr>
+        <tr>
+          <td><span class="rk rk2">2</span></td>
+          <td>エックスアールピー</td><td style="text-align:right;">XRP</td>
+          <td style="color:var(--green);">1,045,000,000</td><td>98,600</td>
+          <td style="color:var(--red);">1,048,000,000</td><td>99,200</td>
+          <td style="font-weight:700;">197,800</td>
+          <td><div class="bar-c">12.8%<div class="bar-t"><div class="bar-f" style="width:17.6%;background:var(--teal)"></div></div></div></td>
+        </tr>
+        <tr>
+          <td><span class="rk rk3">3</span></td>
+          <td>イーサリアム</td><td style="text-align:right;">ETH</td>
+          <td style="color:var(--green);">630,000</td><td>87,200</td>
+          <td style="color:var(--red);">632,000</td><td>87,600</td>
+          <td style="font-weight:700;">174,800</td>
+          <td><div class="bar-c">11.3%<div class="bar-t"><div class="bar-f" style="width:15.6%;background:var(--purple)"></div></div></div></td>
+        </tr>
+        <tr>
+          <td><span class="rk rkn">4</span></td>
+          <td>ソラナ</td><td style="text-align:right;">SOL</td>
+          <td style="color:var(--green);">340,000</td><td>21,500</td>
+          <td style="color:var(--red);">341,000</td><td>21,600</td>
+          <td style="font-weight:700;">43,100</td>
+          <td><div class="bar-c">2.8%<div class="bar-t"><div class="bar-f" style="width:3.8%;background:#9945ff"></div></div></div></td>
+        </tr>
+        <tr>
+          <td><span class="rk rkn">5</span></td>
+          <td>その他</td><td style="text-align:right;">—</td>
+          <td>—</td><td>—</td><td>—</td><td>—</td>
+          <td style="font-weight:700;">7,792</td>
+          <td><div class="bar-c">0.5%<div class="bar-t"><div class="bar-f" style="width:0.7%"></div></div></div></td>
+        </tr>
+      </tbody>
+    </table>
+    </div>
+  </div>
+
+</main>
+
+<footer>
+  <p>
+    出典：<a href="https://jvcea.or.jp/statistics/information/" target="_blank">
+    一般社団法人 日本暗号資産等取引業協会（JVCEA）</a>
+    — 会員統計情報「暗号資産取引月次データ」2026年6月（更新日：2026年7月31日）
+  </p>
+  <p style="margin-top:5px;">
+    注1 取引高には、他の交換業者等への取次ぎを行った利用者取引分を含みます。
+    注2 利用者残高には、他の交換業者等への取次ぎを行った利用者分を含みません。
+    注7 取引高は月の初日から末日までを集計した数値。利用者預託金残高・建玉残高・利用者口座数は月末時点の数値。
+    ※ 2021年9月〜2024年8月分はスプレッドシートデータにより補完。
+  </p>
+</footer>
+
+<script>
+Chart.defaults.color = '#8b949e';
+Chart.defaults.font.family = "'Helvetica Neue', Arial, 'Hiragino Kaku Gothic Pro', sans-serif";
+Chart.defaults.font.size = 11;
+
+/* ── RECENT DATA: 2024/9 - 2026/6 (22 months) ─────────── */
+const LABELS = ['24/9','24/10','24/11','24/12','25/1','25/2','25/3','25/4','25/5','25/6','25/7','25/8','25/9','25/10','25/11','25/12','26/1','26/2','26/3','26/4','26/5','26/6'];
+const N = LABELS.length - 1;
+
+const spotData    = [909779,1116411,2670562,2753491,2535010,1917634,1902374,1633929,1726026,1395329,2032994,2007049,1493209,2293515,2054195,1664937,1544492,1622651,1200889,843868,708838,904867];
+const marginData  = [701558,799849,2198555,2379946,1872787,1539807,1669316,1710726,11670423,871943,1251550,1173907,820097,1497018,1334659,1024044,1002694,1544897,1007259,751274,684256,846705];
+const depositTotal= [2620979,2887659,4370971,4506801,5038924,3778617,3610301,3786643,4261508,4349764,5355555,5079903,5219211,5130197,4383257,4143962,3710620,3098717,3149187,3456765,3355610,2752124];
+const depositMargin=[243444,257626,444920,472595,547574,502717,422739,443417,498456,524804,661242,631621,658451,641798,559273,525054,462478,407596,418073,477808,471377,399346];
+
+const accSet  = [1082.6,1103.1,1130.8,1162.4,1195.2,1213.0,1221.7,1229.1,1244.0,1258.0,1274.3,1293.2,1320.9,1340.9,1355.1,1379.0,1393.8,1403.8,1411.7,1417.5,1422.7,1444.3];
+const accAct  = [646.8,663.0,685.5,702.4,723.2,728.0,748.0,750.3,757.9,767.4,777.0,787.4,806.2,828.9,836.8,845.4,850.0,877.9,880.2,880.9,881.3,892.0];
+const accMgSet= [152.1,153.4,158.1,162.9,168.4,171.5,182.2,183.9,185.3,187.6,189.6,192.2,195.0,198.2,200.8,203.5,207.6,211.2,213.7,215.5,217.7,222.0];
+const accMgAct= [65.6,66.6,68.7,70.6,72.4,73.1,87.6,87.9,88.3,88.5,90.1,91.8,92.4,94.0,94.6,95.1,96.2,97.6,99.4,99.6,100.0,100.4];
+
+/* ── FULL-PERIOD DATA: 2020/10 - 2026/6 (69 months) ──────
+   Indices 0-10:  2020/10 - 2021/8  (data available)
+   Indices 11-46: 2021/9  - 2024/8  (data filled)
+   Indices 47-68: 2024/9  - 2026/6  (data available)
+────────────────────────────────────────────────────────── */
+
+const LABELS_ALL = [
+  '20/10','20/11','20/12',
+  '21/1','21/2','21/3','21/4','21/5','21/6','21/7','21/8',
+  '21/9','21/10','21/11','21/12',
+  '22/1','22/2','22/3','22/4','22/5','22/6','22/7','22/8','22/9','22/10','22/11','22/12',
+  '23/1','23/2','23/3','23/4','23/5','23/6','23/7','23/8','23/9','23/10','23/11','23/12',
+  '24/1','24/2','24/3','24/4','24/5','24/6','24/7','24/8',
+  '24/9','24/10','24/11','24/12',
+  '25/1','25/2','25/3','25/4','25/5','25/6','25/7','25/8','25/9','25/10','25/11','25/12',
+  '26/1','26/2','26/3','26/4','26/5','26/6'
+];
+const N_ALL = LABELS_ALL.length - 1; // 68
+
+const spotAll = [
+  663492,1801141,3869310,
+  4171074,3419826,4183943,5158509,2317608,1516967,2459134,2053344,
+  2053344,2339374,1897425,1370842,1284829,1345298,1023745,1387738,1154713,1071485,865706,794323,574483,757174,344198,506764,613910,921758,676408,562449,668598,648828,501080,429245,701290,915296,1108137,1289202,1416156,2432797,1664934,1259998,1039630,1416427,1434491,909779,
+  909779,1116411,2670562,2753491,
+  2535010,1917634,1902374,1633929,1726026,1395329,2032994,2007049,1493209,2293515,2054195,1664937,
+  1544492,1622651,1200889,843868,708838,904867
+];
+const marginAll = [
+  4804171,10010768,20357711,
+  13071219,6756342,4056632,5254879,3937932,2649280,3619559,3305524,
+  3305524,2516055,2704796,1798493,1990683,1888518,1492660,1962742,1879063,1750392,1507435,1404797,966674,874484,434527,708717,820207,1096505,295880,286847,475568,301279,239047,207440,374329,402742,419775,659014,584689,1337298,1088377,58090,597084,1055056,1032071,701558,
+  701558,799849,2198555,2379946,
+  1872787,1539807,1669316,1710726,11670423,871943,1251550,1173907,820097,1497018,1334659,1024044,
+  1002694,1544897,1007259,751274,684256,846705
+];
+const depTotalAll = [
+  513556,793606,1069074,
+  1339203,1652631,1997286,1512749,1373618,1496114,1827583,1673182,
+  1673182,2167132,1785468,1458473,1551680,1837836,1575104,1278677,948418,1174628,1086449,1135589,1188622,937859,1058595,1088061,1167579,1311787,1348585,1314474,1415295,1457254,1356490,1402132,1561345,1774690,1946536,1974632,2746615,3072684,2719088,3024464,2893642,2896392,2496230,2620979,
+  2620979,2887659,4370971,4506801,
+  5038924,3778617,3610301,3786643,4261508,4349764,5355555,5079903,5219211,5130197,4383257,4143962,
+  3710620,3098717,3149187,3456765,3355610,2752124
+];
+const depMarginAll = [
+  40078,53404,70389,
+  63575,104781,102749,86673,84148,86007,101094,92117,
+  92117,107128,98614,91089,99662,110235,108956,102152,86692,115807,111872,126348,111071,91578,83811,97669,99473,115471,117278,120928,129439,140710,130487,137474,158159,168424,183327,182231,245025,283046,243964,272035,251595,258182,229349,243444,
+  243444,257626,444920,472595,
+  547574,502717,422739,443417,498456,524804,661242,631621,658451,641798,559273,525054,
+  462478,407596,418073,477808,471377,399346
+];
+
+// Key label indices to display on full-period x-axis
+// 0=20/10, 3=21/1, 15=22/1, 27=23/1, 39=24/1, 47=24/9, 51=25/1, 63=26/1, 68=26/6
+const FULL_SHOW = new Set([0, 3, 15, 27, 39, 47, 51, 63, 68]);
+const GAP_IDX   = new Set([]); // no gap - all data filled
+
+/* ── HISTORICAL DATA: 2020/10 - 2021/8 (11 months) ──────── */
+const LABELS_H = ['20/10','20/11','20/12','21/1','21/2','21/3','21/4','21/5','21/6','21/7','21/8'];
+
+const spotH     = [663492,1801141,3869310,4171074,3419826,4183943,5158509,2317608,1516967,2459134,2053344];
+const marginH   = [4804171,10010768,20357711,13071219,6756342,4056632,5254879,3937932,2649280,3619559,3305524];
+const depTotH   = [513556,793606,1069074,1339203,1652631,1997286,1512749,1373618,1496114,1827583,1673182];
+const depMgH    = [40078,53404,70389,63575,104781,102749,86673,84148,86007,101094,92117];
+
+const accSetH   = [363.8,371.0,394.0,412.9,431.4,452.4,470.9,481.0,487.5,497.8,509.2];
+const accActH   = [229.0,231.8,244.1,246.4,256.2,266.5,276.8,279.7,283.9,287.7,295.0];
+const accMgSetH = [107.1,108.7,114.6,119.0,120.5,124.3,128.3,130.4,133.6,133.2,135.1];
+const accMgActH = [61.5,61.8,63.8,53.7,53.9,54.7,56.0,56.4,56.4,56.6,58.6];
+
+/* ── HELPERS ─────────────────────────────────────────────── */
+const grd = (ctx, top, bot) => {
+  const g = ctx.createLinearGradient(0,0,0,300);
+  g.addColorStop(0, top); g.addColorStop(1, bot); return g;
+};
+const hiColor = (arr, base, hi) => arr.map((_,i) => i === N ? hi : base);
+
+/* ── VOLUME BAR (FULL PERIOD) ────────────────────────────── */
+const ctxVol = document.getElementById('cvVol').getContext('2d');
+new Chart(ctxVol, {
+  type:'bar',
+  data:{
+    labels: LABELS_ALL,
+    datasets:[
+      {
+        label:'現物取引高',
+        data: spotAll,
+        backgroundColor: spotAll.map((_,i) => i===N_ALL ? 'rgba(240,180,41,1)' : 'rgba(240,180,41,.5)'),
+        borderRadius:3, order:1,
+      },
+      {
+        label:'証拠金取引高',
+        data: marginAll,
+        backgroundColor: marginAll.map((_,i) => i===N_ALL ? 'rgba(57,208,196,1)' : 'rgba(57,208,196,.45)'),
+        borderRadius:3, order:2,
+      }
+    ]
+  },
+  options:{
+    responsive:true, maintainAspectRatio:false,
+    interaction:{mode:'index',intersect:false},
+    plugins:{
+      legend:{display:false},
+      tooltip:{
+        backgroundColor:'#161b22', borderColor:'#30363d', borderWidth:1,
+        filter: item => item.parsed.y !== null,
+        callbacks:{
+          label: c => ` ${c.dataset.label}：${c.parsed.y.toLocaleString()} 百万円`,
+          afterBody: items => items[0].dataIndex===N_ALL ? ['','★ 最新月（2026年6月）'] : []
+        }
+      }
+    },
+    scales:{
+      x:{
+        grid:{color:'rgba(48,54,61,.4)'},
+        ticks:{
+          callback: (_, i) => {
+            if (!FULL_SHOW.has(i)) return '';
+            return i === N_ALL ? '★ '+LABELS_ALL[i] : LABELS_ALL[i];
+          },
+          color: (ctx) => {
+            const i = ctx.index;
+            if (i === N_ALL) return '#f0b429';
+            if (GAP_IDX.has(i)) return 'rgba(139,148,158,0.4)';
+            return '#8b949e';
+          },
+          maxRotation:45, minRotation:45
+        }
+      },
+      y:{
+        grid:{color:'rgba(48,54,61,.4)'},
+        ticks:{callback: v => (v/1000000).toFixed(1)+'兆'}
+      }
+    }
+  }
+});
+
+/* ── DEPOSIT LINE (FULL PERIOD) ──────────────────────────── */
+const ctxDep = document.getElementById('cvDeposit').getContext('2d');
+new Chart(ctxDep, {
+  type:'line',
+  data:{
+    labels: LABELS_ALL,
+    datasets:[
+      {
+        label:'預託金合計',
+        data: depTotalAll,
+        borderColor:'#bc8cff',
+        backgroundColor: grd(ctxDep,'rgba(188,140,255,.2)','rgba(188,140,255,0)'),
+        borderWidth:2, fill:true, tension:.4, spanGaps:false,
+        pointRadius: depTotalAll.map((_,i)=>i===N_ALL?7:depTotalAll[i]!=null?2:0),
+        pointBackgroundColor: depTotalAll.map((_,i)=>i===N_ALL?'#f0b429':'#bc8cff'),
+        pointBorderColor:'#0d1117', pointBorderWidth:2,
+      },
+      {
+        label:'うち証拠金額',
+        data: depMarginAll,
+        borderColor:'#ffa657',
+        backgroundColor: grd(ctxDep,'rgba(255,166,87,.12)','rgba(255,166,87,0)'),
+        borderWidth:1.5, fill:true, tension:.4, borderDash:[4,3], spanGaps:false,
+        pointRadius: depMarginAll.map((_,i)=>i===N_ALL?6:depMarginAll[i]!=null?1.5:0),
+        pointBackgroundColor: depMarginAll.map((_,i)=>i===N_ALL?'#f0b429':'#ffa657'),
+        pointBorderColor:'#0d1117', pointBorderWidth:2,
+      }
+    ]
+  },
+  options:{
+    responsive:true, maintainAspectRatio:false,
+    interaction:{mode:'index',intersect:false},
+    plugins:{
+      legend:{display:false},
+      tooltip:{
+        backgroundColor:'#161b22', borderColor:'#30363d', borderWidth:1,
+        filter: item => item.parsed.y !== null,
+        callbacks:{ label: c => ` ${c.dataset.label}：${c.parsed.y.toLocaleString()} 百万円` }
+      }
+    },
+    scales:{
+      x:{
+        grid:{color:'rgba(48,54,61,.4)'},
+        ticks:{
+          callback: (_, i) => {
+            if (!FULL_SHOW.has(i)) return '';
+            return i === N_ALL ? '★ '+LABELS_ALL[i] : LABELS_ALL[i];
+          },
+          color: (ctx) => {
+            const i = ctx.index;
+            if (i === N_ALL) return '#f0b429';
+            if (GAP_IDX.has(i)) return 'rgba(139,148,158,0.4)';
+            return '#8b949e';
+          },
+          maxRotation:45, minRotation:45
+        }
+      },
+      y:{grid:{color:'rgba(48,54,61,.4)'},ticks:{callback:v=>(v/1000000).toFixed(1)+'兆'}}
+    }
+  }
+});
+
+/* ── ACCOUNT LINE (RECENT) ───────────────────────────────── */
+const ctxAcc = document.getElementById('cvAcc').getContext('2d');
+new Chart(ctxAcc, {
+  type:'line',
+  data:{
+    labels: LABELS,
+    datasets:[
+      {
+        label:'全体（設定）',
+        data: accSet,
+        borderColor:'#58a6ff',
+        backgroundColor: grd(ctxAcc,'rgba(88,166,255,.2)','rgba(88,166,255,0)'),
+        borderWidth:2, fill:true, tension:.4,
+        pointRadius: accSet.map((_,i)=>i===N?7:2),
+        pointBackgroundColor: accSet.map((_,i)=>i===N?'#f0b429':'#58a6ff'),
+        pointBorderColor:'#0d1117', pointBorderWidth:2,
+      },
+      {
+        label:'全体（稼働）',
+        data: accAct,
+        borderColor:'#3fb950',
+        backgroundColor: grd(ctxAcc,'rgba(63,185,80,.15)','rgba(63,185,80,0)'),
+        borderWidth:2, fill:true, tension:.4,
+        pointRadius: accAct.map((_,i)=>i===N?7:2),
+        pointBackgroundColor: accAct.map((_,i)=>i===N?'#f0b429':'#3fb950'),
+        pointBorderColor:'#0d1117', pointBorderWidth:2,
+      },
+      {
+        label:'証拠金（設定）',
+        data: accMgSet,
+        borderColor:'#e3b341',
+        borderWidth:1.5, fill:false, tension:.4, borderDash:[5,3],
+        pointRadius: accMgSet.map((_,i)=>i===N?5:2),
+        pointBackgroundColor: accMgSet.map((_,i)=>i===N?'#f0b429':'#e3b341'),
+        pointBorderColor:'#0d1117', pointBorderWidth:2,
+      },
+      {
+        label:'証拠金（稼働）',
+        data: accMgAct,
+        borderColor:'#39d0c4',
+        borderWidth:1.5, fill:false, tension:.4, borderDash:[3,3],
+        pointRadius: accMgAct.map((_,i)=>i===N?5:2),
+        pointBackgroundColor: accMgAct.map((_,i)=>i===N?'#f0b429':'#39d0c4'),
+        pointBorderColor:'#0d1117', pointBorderWidth:2,
+      }
+    ]
+  },
+  options:{
+    responsive:true, maintainAspectRatio:false,
+    interaction:{mode:'index',intersect:false},
+    plugins:{
+      legend:{display:false},
+      tooltip:{
+        backgroundColor:'#161b22', borderColor:'#30363d', borderWidth:1,
+        callbacks:{ label: c => ` ${c.dataset.label}：${c.parsed.y.toFixed(1)} 万口座` }
+      }
+    },
+    scales:{
+      x:{grid:{color:'rgba(48,54,61,.4)'},ticks:{maxRotation:45,minRotation:45}},
+      y:{grid:{color:'rgba(48,54,61,.4)'},ticks:{callback:v=>v+'万'}}
+    }
+  }
+});
+
+/* ── RATIO LINE (latest 12 months) ───────────────────────── */
+const ctxR = document.getElementById('cvRatio').getContext('2d');
+new Chart(ctxR, {
+  type:'line',
+  data:{
+    labels: LABELS.slice(-12),
+    datasets:[
+      {
+        label:'現物取引高',
+        data: spotData.slice(-12),
+        borderColor:'#f0b429',
+        backgroundColor:'rgba(240,180,41,.12)',
+        borderWidth:2, fill:true, tension:.35,
+        pointRadius: spotData.slice(-12).map((_,i,a)=>i===a.length-1?7:3),
+        pointBackgroundColor: spotData.slice(-12).map((_,i,a)=>i===a.length-1?'#f0b429':'rgba(240,180,41,.7)'),
+        pointBorderColor:'#0d1117', pointBorderWidth:2,
+      },
+      {
+        label:'証拠金取引高',
+        data: marginData.slice(-12),
+        borderColor:'#39d0c4',
+        backgroundColor:'rgba(57,208,196,.08)',
+        borderWidth:2, fill:true, tension:.35,
+        pointRadius: marginData.slice(-12).map((_,i,a)=>i===a.length-1?7:3),
+        pointBackgroundColor: marginData.slice(-12).map((_,i,a)=>i===a.length-1?'#39d0c4':'rgba(57,208,196,.7)'),
+        pointBorderColor:'#0d1117', pointBorderWidth:2,
+      }
+    ]
+  },
+  options:{
+    responsive:true, maintainAspectRatio:false,
+    interaction:{mode:'index',intersect:false},
+    plugins:{
+      legend:{display:false},
+      tooltip:{
+        backgroundColor:'#161b22', borderColor:'#30363d', borderWidth:1,
+        callbacks:{ label: c => ` ${c.dataset.label}：${c.parsed.y.toLocaleString()} 百万円` }
+      }
+    },
+    scales:{
+      x:{grid:{color:'rgba(48,54,61,.4)'},ticks:{maxRotation:45,minRotation:45}},
+      y:{grid:{color:'rgba(48,54,61,.4)'},ticks:{callback:v=>(v/1000000).toFixed(1)+'兆'}}
+    }
+  }
+});
+
+/* ── HISTORICAL VOLUME BAR ───────────────────────────────── */
+const ctxVolH = document.getElementById('cvVolH').getContext('2d');
+new Chart(ctxVolH, {
+  type:'bar',
+  data:{
+    labels: LABELS_H,
+    datasets:[
+      {
+        label:'現物取引高',
+        data: spotH,
+        backgroundColor:'rgba(240,180,41,.55)',
+        borderRadius:4, order:1,
+      },
+      {
+        label:'証拠金取引高',
+        data: marginH,
+        backgroundColor:'rgba(57,208,196,.5)',
+        borderRadius:4, order:2,
+      }
+    ]
+  },
+  options:{
+    responsive:true, maintainAspectRatio:false,
+    interaction:{mode:'index',intersect:false},
+    plugins:{
+      legend:{display:false},
+      tooltip:{
+        backgroundColor:'#161b22', borderColor:'#30363d', borderWidth:1,
+        callbacks:{ label: c => ` ${c.dataset.label}：${c.parsed.y.toLocaleString()} 百万円` }
+      }
+    },
+    scales:{
+      x:{grid:{color:'rgba(48,54,61,.4)'},ticks:{maxRotation:45,minRotation:45}},
+      y:{grid:{color:'rgba(48,54,61,.4)'},ticks:{callback:v=>(v/1000000).toFixed(1)+'兆'}}
+    }
+  }
+});
+
+/* ── HISTORICAL ACCOUNT LINE ─────────────────────────────── */
+const ctxAccH = document.getElementById('cvAccH').getContext('2d');
+new Chart(ctxAccH, {
+  type:'line',
+  data:{
+    labels: LABELS_H,
+    datasets:[
+      {
+        label:'全体（設定）',
+        data: accSetH,
+        borderColor:'#58a6ff',
+        backgroundColor: grd(ctxAccH,'rgba(88,166,255,.2)','rgba(88,166,255,0)'),
+        borderWidth:2, fill:true, tension:.4,
+        pointRadius:3, pointBackgroundColor:'#58a6ff',
+        pointBorderColor:'#0d1117', pointBorderWidth:2,
+      },
+      {
+        label:'全体（稼働）',
+        data: accActH,
+        borderColor:'#3fb950',
+        backgroundColor: grd(ctxAccH,'rgba(63,185,80,.15)','rgba(63,185,80,0)'),
+        borderWidth:2, fill:true, tension:.4,
+        pointRadius:3, pointBackgroundColor:'#3fb950',
+        pointBorderColor:'#0d1117', pointBorderWidth:2,
+      },
+      {
+        label:'証拠金（設定）',
+        data: accMgSetH,
+        borderColor:'#e3b341',
+        borderWidth:1.5, fill:false, tension:.4, borderDash:[5,3],
+        pointRadius:2, pointBackgroundColor:'#e3b341',
+        pointBorderColor:'#0d1117', pointBorderWidth:2,
+      },
+      {
+        label:'証拠金（稼働）',
+        data: accMgActH,
+        borderColor:'#39d0c4',
+        borderWidth:1.5, fill:false, tension:.4, borderDash:[3,3],
+        pointRadius:2, pointBackgroundColor:'#39d0c4',
+        pointBorderColor:'#0d1117', pointBorderWidth:2,
+      }
+    ]
+  },
+  options:{
+    responsive:true, maintainAspectRatio:false,
+    interaction:{mode:'index',intersect:false},
+    plugins:{
+      legend:{display:false},
+      tooltip:{
+        backgroundColor:'#161b22', borderColor:'#30363d', borderWidth:1,
+        callbacks:{ label: c => ` ${c.dataset.label}：${c.parsed.y.toFixed(1)} 万口座` }
+      }
+    },
+    scales:{
+      x:{grid:{color:'rgba(48,54,61,.4)'},ticks:{maxRotation:45,minRotation:45}},
+      y:{grid:{color:'rgba(48,54,61,.4)'},ticks:{callback:v=>v+'万'}}
+    }
+  }
+});
+</script>
+</body>
+</html>
