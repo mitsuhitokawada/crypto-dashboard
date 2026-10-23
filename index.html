@@ -228,6 +228,49 @@
     }
     footer a { color:var(--blue); text-decoration:none; }
     footer a:hover { text-decoration:underline; }
+  
+    /* ── 期間セレクター ── */
+    .range-bar {
+      position: sticky; top: 8px; z-index: 20;
+      background: rgba(22,27,34,.94); backdrop-filter: blur(8px);
+      border: 1px solid var(--border); border-radius: 12px;
+      padding: 12px 18px 8px; margin-bottom: 14px;
+      box-shadow: 0 6px 24px rgba(0,0,0,.35);
+    }
+    .rb-top { display:flex; flex-wrap:wrap; align-items:center; justify-content:space-between; gap:8px 16px; }
+    .rb-presets { display:flex; flex-wrap:wrap; gap:6px; }
+    .rb-presets button {
+      font: inherit; font-size:.7rem; font-weight:700; color:var(--text-lo);
+      background: var(--bg-card2); border:1px solid var(--border); border-radius:999px;
+      padding:4px 12px; cursor:pointer;
+    }
+    .rb-presets button:hover { color:var(--text-hi); border-color:var(--gold-dim); }
+    .rb-presets button.on { color:#0d1117; background:var(--gold); border-color:var(--gold); }
+    .rb-readout { font-size:.78rem; font-weight:700; color:var(--text-hi); }
+    .rb-readout .rb-count { font-weight:400; color:var(--text-lo); margin-left:8px; font-size:.7rem; }
+    .rb-slider { position:relative; height:28px; margin:8px 8px 0; }
+    .rb-track { position:absolute; left:0; right:0; top:12px; height:4px; background:var(--border); border-radius:2px; }
+    .rb-fill { position:absolute; top:0; bottom:0; background:var(--gold); border-radius:2px; }
+    .rb-slider input[type=range] {
+      position:absolute; left:-8px; width:calc(100% + 16px); top:0; height:28px; margin:0;
+      background:none; pointer-events:none; -webkit-appearance:none; appearance:none;
+    }
+    .rb-slider input[type=range]::-webkit-slider-runnable-track { height:28px; background:transparent; }
+    .rb-slider input[type=range]::-moz-range-track { background:transparent; }
+    .rb-slider input[type=range]::-webkit-slider-thumb {
+      -webkit-appearance:none; pointer-events:auto; cursor:pointer; margin-top:6px;
+      width:16px; height:16px; border-radius:50%; background:var(--gold);
+      border:2px solid var(--bg-base); box-shadow:0 0 0 1px var(--gold-dim);
+    }
+    .rb-slider input[type=range]::-moz-range-thumb {
+      pointer-events:auto; cursor:pointer; width:12px; height:12px; border-radius:50%;
+      background:var(--gold); border:2px solid var(--bg-base); box-shadow:0 0 0 1px var(--gold-dim);
+    }
+    .rb-slider input[type=range]:focus-visible::-webkit-slider-thumb { box-shadow:0 0 0 3px var(--gold-glow); }
+    .rb-ticks { position:relative; height:16px; margin:0 8px; font-size:.62rem; color:var(--text-lo); }
+    .rb-ticks span { position:absolute; transform:translateX(-50%); white-space:nowrap; }
+    .rb-ticks span:first-child { transform:none; }
+    .rb-ticks span:last-child { transform:translateX(-100%); }
   </style>
 </head>
 <body>
@@ -316,7 +359,21 @@
   </div>
 
   <!-- RECENT CHARTS (full period) -->
-  <div class="section-label" style="margin-top:32px;">現物・証拠金取引高 ／ 利用者預託金残高の推移（2020年10月〜2026年8月）</div>
+  <div class="section-label" style="margin-top:32px;">現物・証拠金取引高 ／ 利用者預託金残高の推移<span id="secRange">（2020年10月〜2026年8月）</span></div>
+
+  <!-- 期間セレクター -->
+  <div class="range-bar" id="rangeBar">
+    <div class="rb-top">
+      <div class="rb-presets" id="rbPresets"></div>
+      <div class="rb-readout"><span id="rbFrom"></span> 〜 <span id="rbTo"></span><span class="rb-count" id="rbCount"></span></div>
+    </div>
+    <div class="rb-slider">
+      <div class="rb-track"><div class="rb-fill" id="rbFill"></div></div>
+      <input type="range" id="rbStart" min="0" max="70" step="1" value="0" aria-label="表示期間の開始月">
+      <input type="range" id="rbEnd"   min="0" max="70" step="1" value="70" aria-label="表示期間の終了月">
+    </div>
+    <div class="rb-ticks" id="rbTicks"></div>
+  </div>
   <div class="row c2">
 
     <div class="card">
@@ -349,7 +406,7 @@
 
     <div class="card">
       <div class="card-title">利用者口座数 推移</div>
-      <div class="card-sub">月末時点（万口座）— <span class="latest-dot"></span>2026年8月が最新値</div>
+      <div class="card-sub">月末時点（万口座）— <span class="latest-dot"></span>2026年8月が最新値 <span id="accNote" style="color:var(--gold-dim)"></span></div>
       <div class="chart-wrap" style="height:250px;">
         <canvas id="cvAcc"></canvas>
       </div>
@@ -955,9 +1012,6 @@ const depMarginAll = [
   462478,407596,418073,477808,471377,399346,406571,436192
 ];
 
-// Key label indices to display on full-period x-axis
-// 0=20/10, 3=21/1, 15=22/1, 27=23/1, 39=24/1, 47=24/9, 51=25/1, 63=26/1, 70=26/8
-const FULL_SHOW = new Set([0, 3, 15, 27, 39, 47, 51, 63, 70]);
 const GAP_IDX   = new Set([]); // no gap - all data filled
 
 /* ── HISTORICAL DATA: 2020/10 - 2021/8 (11 months) ──────── */
@@ -980,9 +1034,21 @@ const grd = (ctx, top, bot) => {
 };
 const hiColor = (arr, base, hi) => arr.map((_,i) => i === N ? hi : base);
 
+/* 表示期間(LABELS_ALL のインデックス)。期間セレクターが更新する */
+const range = { s: 0, e: N_ALL };
+const ym = i => ({ y: 2020 + Math.floor((i+9)/12), m: (i+9)%12 + 1 });
+// 横軸ラベルを間引く(期間が短いほど細かく表示)
+const showTick = v => {
+  if (v === range.e) return true;
+  const span = range.e - range.s + 1;
+  const step = span <= 14 ? 1 : span <= 28 ? 2 : span <= 48 ? 3 : 6;
+  return (v - range.s) % step === 0 && (range.e - v) >= Math.ceil(step/2);
+};
+const tickLabel = v => v === N_ALL ? '★ '+LABELS_ALL[v] : LABELS_ALL[v];
+
 /* ── VOLUME BAR (FULL PERIOD) ────────────────────────────── */
 const ctxVol = document.getElementById('cvVol').getContext('2d');
-new Chart(ctxVol, {
+const chVol = new Chart(ctxVol, {
   type:'bar',
   data:{
     labels: LABELS_ALL,
@@ -1019,12 +1085,10 @@ new Chart(ctxVol, {
       x:{
         grid:{color:'rgba(48,54,61,.4)'},
         ticks:{
-          callback: (_, i) => {
-            if (!FULL_SHOW.has(i)) return '';
-            return i === N_ALL ? '★ '+LABELS_ALL[i] : LABELS_ALL[i];
-          },
+          autoSkip: false,
+          callback: v => showTick(v) ? tickLabel(v) : '',
           color: (ctx) => {
-            const i = ctx.index;
+            const i = ctx.tick.value;
             if (i === N_ALL) return '#f0b429';
             if (GAP_IDX.has(i)) return 'rgba(139,148,158,0.4)';
             return '#8b949e';
@@ -1042,7 +1106,7 @@ new Chart(ctxVol, {
 
 /* ── DEPOSIT LINE (FULL PERIOD) ──────────────────────────── */
 const ctxDep = document.getElementById('cvDeposit').getContext('2d');
-new Chart(ctxDep, {
+const chDep = new Chart(ctxDep, {
   type:'line',
   data:{
     labels: LABELS_ALL,
@@ -1084,12 +1148,10 @@ new Chart(ctxDep, {
       x:{
         grid:{color:'rgba(48,54,61,.4)'},
         ticks:{
-          callback: (_, i) => {
-            if (!FULL_SHOW.has(i)) return '';
-            return i === N_ALL ? '★ '+LABELS_ALL[i] : LABELS_ALL[i];
-          },
+          autoSkip: false,
+          callback: v => showTick(v) ? tickLabel(v) : '',
           color: (ctx) => {
-            const i = ctx.index;
+            const i = ctx.tick.value;
             if (i === N_ALL) return '#f0b429';
             if (GAP_IDX.has(i)) return 'rgba(139,148,158,0.4)';
             return '#8b949e';
@@ -1104,7 +1166,7 @@ new Chart(ctxDep, {
 
 /* ── ACCOUNT LINE (RECENT) ───────────────────────────────── */
 const ctxAcc = document.getElementById('cvAcc').getContext('2d');
-new Chart(ctxAcc, {
+const chAcc = new Chart(ctxAcc, {
   type:'line',
   data:{
     labels: LABELS,
@@ -1309,6 +1371,77 @@ new Chart(ctxAccH, {
     }
   }
 });
+
+/* ── 期間セレクター ─────────────────────────────────────── */
+(function(){
+  const sEl = document.getElementById('rbStart'), eEl = document.getElementById('rbEnd');
+  const fill = document.getElementById('rbFill'), accNote = document.getElementById('accNote');
+  const tbl = document.querySelector('.tbl-card');
+  const badge = tbl.querySelector('.tbl-badge');
+  const OFF = N_ALL - N;   // 口座数グラフは 2024/9 以降のみ
+  const fmt = i => { const d = ym(i); return d.y+'年'+d.m+'月'; };
+  const rows = [...tbl.querySelectorAll('tbody tr')].map(tr => {
+    const m = tr.cells[0].textContent.match(/(\d{4})\/(\d{1,2})/);
+    return { tr, idx: m ? (+m[1]-2020)*12 + (+m[2]-10) : null };
+  });
+  sEl.max = eEl.max = N_ALL;
+
+  const presets = [['6か月',6],['1年',12],['2年',24],['3年',36],['5年',60],['全期間',N_ALL+1]];
+  const pBox = document.getElementById('rbPresets');
+  presets.forEach(([label, n]) => {
+    const b = document.createElement('button');
+    b.type = 'button'; b.textContent = label; b.dataset.n = n;
+    b.onclick = () => { range.s = Math.max(0, N_ALL-n+1); range.e = N_ALL; apply(); };
+    pBox.appendChild(b);
+  });
+
+  // 年の目盛り(1月の位置)
+  const tk = document.getElementById('rbTicks');
+  const addTick = (i, text) => { const sp = document.createElement('span'); sp.style.left = (i/N_ALL*100)+'%'; sp.textContent = text; tk.appendChild(sp); };
+  addTick(0, '2020/10');
+  for (let i = 1; i < N_ALL; i++) { const d = ym(i); if (d.m === 1 && d.y % 2 === 0 && N_ALL-i > 4) addTick(i, d.y); }
+  addTick(N_ALL, '2026/8');
+
+  function apply(){
+    const { s, e } = range;
+    // 取引高・預託金: x軸の表示範囲を変更(y軸は範囲内のデータに合わせて自動調整)
+    for (const ch of [chVol, chDep]) {
+      ch.options.scales.x.min = s; ch.options.scales.x.max = e;
+    }
+    // 棒グラフは軸の余白に隣月の棒がはみ出すため、範囲外は null にして描画しない
+    const inR = (a) => a.map((v,i) => (i >= s && i <= e) ? v : null);
+    chVol.data.datasets[0].data = inR(spotAll);
+    chVol.data.datasets[1].data = inR(marginAll);
+    chVol.update(); chDep.update();
+    // 口座数: 2024/9 以降のみ収録
+    if (e < OFF) {
+      chAcc.options.scales.x.min = 0; chAcc.options.scales.x.max = N;
+      accNote.textContent = '※選択期間は口座数の収録外のため、全収録期間を表示';
+    } else {
+      chAcc.options.scales.x.min = Math.max(0, s-OFF); chAcc.options.scales.x.max = e-OFF;
+      accNote.textContent = s < OFF ? '※口座数は2024年9月以降のみ収録' : '';
+    }
+    chAcc.update();
+    // 月次一覧表
+    rows.forEach(r => { r.tr.style.display = (r.idx == null || (r.idx >= s && r.idx <= e)) ? '' : 'none'; });
+    // 表示
+    const txt = fmt(s)+'〜'+fmt(e);
+    badge.textContent = txt;
+    document.getElementById('secRange').textContent = '（'+txt+'）';
+    document.getElementById('rbFrom').textContent = fmt(s);
+    document.getElementById('rbTo').textContent = fmt(e);
+    document.getElementById('rbCount').textContent = '（'+(e-s+1)+'か月）';
+    sEl.value = s; eEl.value = e;
+    fill.style.left = (s/N_ALL*100)+'%'; fill.style.right = (100 - e/N_ALL*100)+'%';
+    sEl.style.zIndex = s > N_ALL/2 ? 3 : 1;   // つまみが重なったとき両方つかめるように
+    pBox.querySelectorAll('button').forEach(b => {
+      b.classList.toggle('on', e === N_ALL && s === Math.max(0, N_ALL-(+b.dataset.n)+1));
+    });
+  }
+  sEl.oninput = () => { range.s = Math.min(+sEl.value, range.e); apply(); };
+  eEl.oninput = () => { range.e = Math.max(+eEl.value, range.s); apply(); };
+  apply();
+})();
 </script>
 </body>
 </html>
